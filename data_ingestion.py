@@ -1,17 +1,15 @@
 import sqlite3
 import requests
 from datetime import datetime, timedelta
-import streamlit as st  # ⬅️ ESSENZIALE: Importa Streamlit per leggere le chiavi segrete
+import streamlit as st
 
 DB_PATH = "tennis_lab.db"
 
-# Lettura sicura della chiave segreta dalla cassaforte di Streamlit Cloud
-try:
-    API_KEY = st.secrets["RAPIDAPI_KEY"]
-except Exception:
-    API_KEY = ""  # Fallback locale se eseguito fuori da Streamlit
-
-API_HOST = "flashscore-api1.p.rapidapi.com"
+def get_api_key():
+    try:
+        return st.secrets["RAPIDAPI_KEY"]
+    except Exception:
+        raise ValueError("Chiave 'RAPIDAPI_KEY' non trovata nei Secrets di Streamlit Cloud!")
 
 def inizializza_database():
     conn = sqlite3.connect(DB_PATH)
@@ -39,67 +37,61 @@ def inizializza_database():
     conn.commit()
     conn.close()
 
-def estrai_da_api(date_str, etichetta_giorno):
+def estrai_da_api(date_str, etichetta_giorno, api_key):
     matches = []
-    url = f"https://{API_HOST}/api/flashscore/v2/matches/list-by-date"
+    url = f"https://flashscore-api1.p.rapidapi.com/api/flashscore/v2/matches/list-by-date"
     
     querystring = {
         "language": "it",
         "timezone": "Europe/Rome",
-        "sport_id": "2",  # 2 = Tennis
+        "sport_id": "2",
         "date": date_str
     }
     
     headers = {
-        "x-rapidapi-key": API_KEY,
-        "x-rapidapi-host": API_HOST
+        "x-rapidapi-key": api_key,
+        "x-rapidapi-host": "flashscore-api1.p.rapidapi.com"
     }
 
-    try:
-        response = requests.get(url, headers=headers, params=querystring, timeout=12)
-        if response.status_code != 200:
-            return matches
-            
-        dati_json = response.json()
+    response = requests.get(url, headers=headers, params=querystring, timeout=15)
+    
+    if response.status_code != 200:
+        raise RuntimeError(f"Errore API {response.status_code}: {response.text}")
         
-        if isinstance(dati_json, list):
-            tornei = dati_json
-        else:
-            tornei = dati_json.get('data', []) or dati_json.get('tournaments', [])
-            
-        if not tornei:
-            return matches
-
-        for torneo in tornei:
-            nome_torneo = torneo.get('NAME') or torneo.get('name') or torneo.get('tournament_name') or torneo.get('TOURNAMENT_NAME') or "Torneo Sconosciuto"
-            circuiti_maggiori = ["ATP", "WTA"]
-            
-            if any(circuito in nome_torneo.upper() for circuito in circuiti_maggiori):
-                superficie = "Hard"
-                if "terra" in nome_torneo.lower() or "clay" in nome_torneo.lower(): superficie = "Clay"
-                elif "erba" in nome_torneo.lower() or "grass" in nome_torneo.lower(): superficie = "Grass"
-                
-                eventi = torneo.get('EVENTS') or torneo.get('events') or torneo.get('matches') or []
-                
-                for evento in eventi:
-                    home = evento.get('HOME_NAME') or evento.get('home_participant_name') or evento.get('home_team', {}).get('name') or ''
-                    away = evento.get('AWAY_NAME') or evento.get('away_participant_name') or evento.get('away_team', {}).get('name') or ''
-                    
-                    if home and away:
-                        if "/" not in home and "/" not in away and "-" not in home:
-                            p1 = home.split("(")[0].strip()
-                            p2 = away.split("(")[0].strip()
-                            torneo_etichettato = f"[{etichetta_giorno}] {nome_torneo}"
-                            matches.append((torneo_etichettato, p1, p2, superficie))
-                            
-    except Exception as e:
-        print(f"Errore API per {etichetta_giorno}: {e}")
+    dati_json = response.json()
+    
+    if isinstance(dati_json, list):
+        tornei = dati_json
+    else:
+        tornei = dati_json.get('data', []) or dati_json.get('tournaments', [])
         
+    for torneo in tornei:
+        nome_torneo = torneo.get('NAME') or torneo.get('name') or torneo.get('tournament_name') or torneo.get('TOURNAMENT_NAME') or "Torneo Sconosciuto"
+        circuiti_maggiori = ["ATP", "WTA"]
+        
+        if any(circuito in nome_torneo.upper() for circuito in circuiti_maggiori):
+            superficie = "Hard"
+            if "terra" in nome_torneo.lower() or "clay" in nome_torneo.lower(): superficie = "Clay"
+            elif "erba" in nome_torneo.lower() or "grass" in nome_torneo.lower(): superficie = "Grass"
+            
+            eventi = torneo.get('EVENTS') or torneo.get('events') or torneo.get('matches') or []
+            
+            for evento in eventi:
+                home = evento.get('HOME_NAME') or evento.get('home_participant_name') or evento.get('home_team', {}).get('name') or ''
+                away = evento.get('AWAY_NAME') or evento.get('away_participant_name') or evento.get('away_team', {}).get('name') or ''
+                
+                if home and away:
+                    if "/" not in home and "/" not in away and "-" not in home:
+                        p1 = home.split("(")[0].strip()
+                        p2 = away.split("(")[0].strip()
+                        torneo_etichettato = f"[{etichetta_giorno}] {nome_torneo}"
+                        matches.append((torneo_etichettato, p1, p2, superficie))
+                        
     return matches
 
 def salva_nel_database(matches):
     if not matches:
-        return
+        raise ValueError("L'API ha risposto, ma il palinsesto ATP/WTA restituito è vuoto per le date selezionate.")
         
     matches_unici = list(dict.fromkeys(matches))
     conn = sqlite3.connect(DB_PATH)
@@ -113,14 +105,19 @@ def salva_nel_database(matches):
     conn.close()
 
 def main():
+    api_key = get_api_key()
     inizializza_database()
+    
     oggi_str = datetime.now().strftime('%Y-%m-%d')
     domani_str = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
     
-    matches_oggi = estrai_da_api(oggi_str, "OGGI")
-    matches_domani = estrai_da_api(domani_str, "DOMANI")
+    tutti_i_match = []
     
-    salva_nel_database(matches_oggi + matches_domani)
-
-if __name__ == "__main__":
-    main()
+    try:
+        tutti_i_match.extend(estrai_da_api(oggi_str, "OGGI", api_key))
+    except Exception as e:
+        print(f"Nota su OGGI: {e}")
+        
+    tutti_i_match.extend(estrai_da_api(domani_str, "DOMANI", api_key))
+    
+    salva_nel_database(tutti_i_match)
