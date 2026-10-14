@@ -15,7 +15,7 @@ st.title("🎾 Laboratorio Pronostici Tennis AI")
 # 🎛️ PANNELLO DI CONTROLLO (Come da tua immagine)
 # =====================================================================
 st.subheader("Pannello di Controllo")
-col1, col2 = st.columns(2)
+coll1, coll2 = st.columns([4, 1])
 
 with coll1:
     if st.button("📥 1. Scarica Partite di Domani", use_container_width=True):
