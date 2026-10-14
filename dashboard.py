@@ -41,10 +41,32 @@ st.markdown("---")
 def get_data():
     try:
         conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # 🛡️ CREAZIONE AUTOMATICA TABELLA SE ASSENTE
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS daily_matches (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tournament TEXT,
+                player1 TEXT,
+                player2 TEXT,
+                surface TEXT,
+                p1_stats TEXT,
+                p2_stats TEXT,
+                pure_prob_p1 REAL,
+                pure_prob_p2 REAL,
+                market_odds_p1 REAL,
+                market_odds_p2 REAL,
+                dossier TEXT,
+                status TEXT DEFAULT 'PENDING'
+            )
+        ''')
+        conn.commit()
+        
         df = pd.read_sql_query("SELECT * FROM daily_matches", conn)
         conn.close()
         return df
-    except sqlite3.OperationalError:
+    except Exception as e:
         return pd.DataFrame()
 
 df = get_data()
