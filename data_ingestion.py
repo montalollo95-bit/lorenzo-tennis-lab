@@ -114,7 +114,7 @@ def salva_nel_database(matches):
     conn.close()
     print(f"✅ Inseriti {len(matches_unici)} match VIP pronti per la Dashboard.")
 
-if __name__ == "__main__":
+def main():
     print("🎾 Inizializzazione: Connessione Diretta Flashscore API (No Browser)")
     inizializza_database()
     
@@ -128,3 +128,6 @@ if __name__ == "__main__":
     matches_domani = estrai_da_api(domani_str, "DOMANI")
     
     salva_nel_database(matches_oggi + matches_domani)
+
+if __name__ == "__main__":
+    main()
