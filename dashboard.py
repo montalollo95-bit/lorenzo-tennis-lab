@@ -17,13 +17,17 @@ st.title("🎾 Laboratorio Pronostici Tennis AI")
 st.subheader("Pannello di Controllo")
 col1, col2 = st.columns(2)
 
-with col1:
+with coll1:
     if st.button("📥 1. Scarica Partite di Domani", use_container_width=True):
-        with st.spinner("Estrazione da Diretta.it in corso (richiede qualche secondo)..."):
-            # Esegue lo script data_ingestion in modo silente
-            subprocess.run([sys.executable, "data_ingestion.py"])
-        st.success("✅ Palinsesto di domani scaricato e aggiornato!")
-        st.rerun()
+        with st.spinner("Estrazione dati in corso (richiede qualche secondo)..."):
+            try:
+                import data_ingestion
+                # Chiama direttamente la funzione interna senza subprocessi
+                data_ingestion.main() 
+                st.success("Palinsesto di domani scaricato e aggiornato!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Errore durante l'estrazione: {e}")
 
 with col2:
     if st.button("🧠 2. Avvia Analisi AI (In Coda)", use_container_width=True):
