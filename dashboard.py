@@ -94,3 +94,25 @@ else:
                     st.rerun()
     else:
         st.write("Nessun match in attesa nel palinsesto.")
+
+st.markdown("---")
+st.subheader("🏆 Archivio Pronostici e Dossier AI (COMPLETATI)")
+
+completed_matches = df[df['status'] == 'COMPLETED']
+
+if not completed_matches.empty:
+    for index, row in completed_matches.iterrows():
+        with st.expander(f"📊 {row['tournament']} | {row['player1']} vs {row['player2']} (Superficie: {row['surface']})"):
+            col_info1, col_info2 = st.columns(2)
+            with col_info1:
+                st.markdown(f"**Probabilità Modello:**")
+                st.write(f"- {row['player1']}: **{row['pure_prob_p1']}%** (Quota Fair: `{row['market_odds_p1']}`)")
+                st.write(f"- {row['player2']}: **{row['pure_prob_p2']}%** (Quota Fair: `{row['market_odds_p2']}`)")
+            with col_info2:
+                st.markdown(f"**Stato Match:** `{row['status']}`")
+            
+            st.markdown("---")
+            st.markdown("**Dossier Strategico e Analisi AI:**")
+            st.markdown(row['dossier'] if row['dossier'] else "Nessun dettaglio disponibile.")
+else:
+    st.info("Nessun match analizzato ancora. Metti in coda le partite e avvia l'Analisi AI per popolare questa sezione.")
