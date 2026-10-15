@@ -59,8 +59,14 @@ with col1:
 
 with col2:
     if st.button("🧠 2. Avvia Analisi AI (In Coda)", use_container_width=True):
-        st.info("Funzione di analisi IA pronta per l'esecuzione.")
-
+        with st.spinner("L'Intelligenza Artificiale sta analizzando i match in coda..."):
+            try:
+                import brain_agent
+                brain_agent.process_brain()
+                st.success("Analisi AI completata con successo!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Errore durante l'analisi AI: {e}")
 st.markdown("---")
 
 # Visualizzazione dati e palinsesto
